@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(dir:*)",
+      "Bash(flutter analyze:*)",
+      "Bash(flutter test:*)",
+      "Bash(flutter run:*)",
+      "Bash(timeout:*)",
+      "Bash(flutter attach:*)",
+      "Bash(flutter pub get:*)",
+      "Bash(dart run:*)",
+      "Bash(git add:*)"
+    ]
+  }
+}
