@@ -47,6 +47,13 @@ class _TacticalBoardState extends State<TacticalBoard> {
   double _courtWidth = 0;
   double _courtHeight = 0;
   double _courtOffsetX = 0;
+  double _courtOffsetY = 0;
+
+  /// Court rect (left, top, width, height) from the previous layout pass.
+  /// Used to rescale item/arrow/drawing positions when the board is resized
+  /// (window resize, orientation change, control-bar breakpoint change) so
+  /// placed elements stay anchored to the court instead of drifting off it.
+  Rect? _lastCourtRect;
 
   /// Whether we're in arrow drawing mode.
   bool _isDrawingArrow = false;
@@ -106,20 +113,60 @@ class _TacticalBoardState extends State<TacticalBoard> {
     return boardBox.globalToLocal(globalPosition);
   }
 
+  /// Remaps a point from the [oldRect] court space to the [newRect] court
+  /// space, preserving its position relative to the court.
+  Offset _remapPoint(Offset p, Rect oldRect, Rect newRect) {
+    final relX = (p.dx - oldRect.left) / oldRect.width;
+    final relY = (p.dy - oldRect.top) / oldRect.height;
+    return Offset(
+      newRect.left + relX * newRect.width,
+      newRect.top + relY * newRect.height,
+    );
+  }
+
+  /// Rescales every placed item, arrow and drawing from [oldRect] to [newRect]
+  /// so they stay anchored to the court when the board is resized/rotated.
+  /// Mutates models in place; the widgets re-sync via their didUpdateWidget.
+  void _rescaleAll(Rect oldRect, Rect newRect) {
+    for (final item in _items) {
+      item.position = _remapPoint(item.position, oldRect, newRect);
+    }
+    for (final arrow in _arrows) {
+      arrow.startPoint = _remapPoint(arrow.startPoint, oldRect, newRect);
+      arrow.controlPoint1 = _remapPoint(arrow.controlPoint1, oldRect, newRect);
+      arrow.controlPoint2 = _remapPoint(arrow.controlPoint2, oldRect, newRect);
+      arrow.endPoint = _remapPoint(arrow.endPoint, oldRect, newRect);
+    }
+    final scaleX = newRect.width / oldRect.width;
+    final scaleY = newRect.height / oldRect.height;
+    for (final drawing in _drawings) {
+      drawing.origin = _remapPoint(drawing.origin, oldRect, newRect);
+      // size is a delta (width/height or radius), so scale it, not remap it.
+      drawing.size = Offset(drawing.size.dx * scaleX, drawing.size.dy * scaleY);
+      if (drawing.points.isNotEmpty) {
+        drawing.points = drawing.points
+            .map((pt) => _remapPoint(pt, oldRect, newRect))
+            .toList();
+      }
+    }
+  }
+
   /// Adds a new item at the specified position.
   void _addItemAtPosition(ItemType type, Offset globalPosition) {
     final localPosition = _globalToLocal(globalPosition);
     if (localPosition == null) return;
 
-    // Center the item on the drop position
-    double offsetX = kPlayerRadius;
-    double offsetY = kPlayerRadius;
+    // Center the item on the drop position using the same responsive scale
+    // the rendered tokens use, so the drop lines up with the finger/cursor.
+    final sizes = ResponsiveSizes(context);
+    double offsetX = sizes.playerRadius;
+    double offsetY = sizes.playerRadius;
     if (type == ItemType.cone) {
-      offsetX = kConeSize / 2;
-      offsetY = kConeSize / 2;
+      offsetX = sizes.coneSize / 2;
+      offsetY = sizes.coneSize / 2;
     } else if (type == ItemType.ball) {
-      offsetX = kBallSize / 2;
-      offsetY = kBallSize / 2;
+      offsetX = sizes.ballSize / 2;
+      offsetY = sizes.ballSize / 2;
     } else if (type == ItemType.text) {
       offsetX = 20;
       offsetY = 12;
@@ -195,10 +242,10 @@ class _TacticalBoardState extends State<TacticalBoard> {
   }
 
   /// Shows confirmation dialog (if board not empty) and sets up 6vs6 formation.
-  void _setup6vs6(double courtWidth, double courtHeight, double offsetX) {
+  void _setup6vs6(double courtWidth, double courtHeight, double offsetX, double offsetY) {
     // If board is empty, just do the setup directly
     if (_items.isEmpty && _arrows.isEmpty && _drawings.isEmpty) {
-      _doSetup6vs6(courtWidth, courtHeight, offsetX);
+      _doSetup6vs6(courtWidth, courtHeight, offsetX, offsetY);
       return;
     }
 
@@ -216,7 +263,7 @@ class _TacticalBoardState extends State<TacticalBoard> {
           TextButton(
             onPressed: () {
               Navigator.pop(context);
-              _doSetup6vs6(courtWidth, courtHeight, offsetX);
+              _doSetup6vs6(courtWidth, courtHeight, offsetX, offsetY);
             },
             child: const Text('Continue'),
           ),
@@ -227,7 +274,7 @@ class _TacticalBoardState extends State<TacticalBoard> {
 
   /// Actually performs the 6vs6 setup.
   /// Positions are defined in court coordinates (2040x1592) and scaled to rendered size.
-  void _doSetup6vs6(double courtWidth, double courtHeight, double offsetX) {
+  void _doSetup6vs6(double courtWidth, double courtHeight, double offsetX, double offsetY) {
     // Original court dimensions
     const originalWidth = 2040.0;
     const originalHeight = 1592.0;
@@ -236,9 +283,9 @@ class _TacticalBoardState extends State<TacticalBoard> {
     final scaleX = courtWidth / originalWidth;
     final scaleY = courtHeight / originalHeight;
 
-    // Helper to convert court coordinates to rendered coordinates
-    // Adds offsetX to account for centered court position
-    Offset toRendered(double x, double y) => Offset(x * scaleX + offsetX, y * scaleY);
+    // Helper to convert court coordinates to rendered coordinates.
+    // Adds offsetX/offsetY to account for the bottom-centered court position.
+    Offset toRendered(double x, double y) => Offset(x * scaleX + offsetX, y * scaleY + offsetY);
 
     setState(() {
       // Clear existing items
@@ -632,7 +679,7 @@ class _TacticalBoardState extends State<TacticalBoard> {
             onArrowModePressed: _isDrawingArrow ? _cancelArrowMode : _startArrowMode,
             onDrawModePressed: _isDrawingMode ? _cancelDrawingMode : _startDrawingMode,
             onClearAll: _clearAll,
-            onSetup6vs6: () => _setup6vs6(_courtWidth, _courtHeight, _courtOffsetX-15),
+            onSetup6vs6: () => _setup6vs6(_courtWidth, _courtHeight, _courtOffsetX-15, _courtOffsetY),
           ),
         // Main board area with DragTarget
         Expanded(
@@ -663,10 +710,35 @@ class _TacticalBoardState extends State<TacticalBoard> {
                       courtWidth = courtHeight * kCourtAspectRatio;
                     }
 
-                    // Store court dimensions for 6vs6 setup
+                    // Store court dimensions for 6vs6 setup. The court image is
+                    // positioned bottom-centered, so its top is offset by the
+                    // remaining vertical space.
                     _courtWidth = courtWidth;
                     _courtHeight = courtHeight;
                     _courtOffsetX = (availableWidth - courtWidth) / 2;
+                    _courtOffsetY = availableHeight - courtHeight;
+
+                    // Rescale existing elements when the court rect changes so
+                    // they stay anchored to the court across resizes/rotations.
+                    final courtRect = Rect.fromLTWH(
+                      _courtOffsetX,
+                      _courtOffsetY,
+                      courtWidth,
+                      courtHeight,
+                    );
+                    if (courtWidth > 0 && courtHeight > 0) {
+                      final old = _lastCourtRect;
+                      if (old != null &&
+                          old.width > 0 &&
+                          old.height > 0 &&
+                          ((old.width - courtRect.width).abs() > 0.5 ||
+                              (old.height - courtRect.height).abs() > 0.5 ||
+                              (old.left - courtRect.left).abs() > 0.5 ||
+                              (old.top - courtRect.top).abs() > 0.5)) {
+                        _rescaleAll(old, courtRect);
+                      }
+                      _lastCourtRect = courtRect;
+                    }
 
                   return GestureDetector(
                     onTapUp: (details) {

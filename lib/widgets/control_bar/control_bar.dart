@@ -256,8 +256,9 @@ class ControlBar extends StatelessWidget {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Draggable<ItemType>(
+        LongPressDraggable<ItemType>(
           data: itemType,
+          delay: const Duration(milliseconds: 150),
           feedback: Material(
             color: Colors.transparent,
             child: Opacity(

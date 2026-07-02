@@ -66,7 +66,7 @@ class ResponsiveSizes {
     }
     return isSmallPhone ? 60.0 : (isPhone ? 70.0 : 80.0);
   }
-  double get controlButtonSize => isSmallPhone ? 36.0 : (isPhone ? 42.0 : 48.0);
+  double get controlButtonSize => isSmallPhone ? 44.0 : (isPhone ? 44.0 : 48.0);
   double get fontSize => isSmallPhone ? 8.0 : (isPhone ? 9.0 : 10.0);
   double get itemSpacing => isSmallPhone ? 8.0 : (isPhone ? 10.0 : 12.0);
   double get textSizeSmall => kTextSizeSmall * scaleFactor;

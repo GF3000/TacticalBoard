@@ -150,78 +150,32 @@ class _DraggableItemState extends State<DraggableItem> {
   }
 
   void _showNameDialog() {
-    final controller = TextEditingController(text: widget.playerName ?? '');
-
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Edit Player Name'),
-        content: TextField(
-          controller: controller,
-          maxLength: 20,
-          autofocus: true,
-          textCapitalization: TextCapitalization.words,
-          decoration: const InputDecoration(
-            hintText: 'Enter player name',
-          ),
-          onSubmitted: (value) {
-            Navigator.pop(context);
-            widget.onNameChanged?.call(value);
-          },
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-              widget.onNameChanged?.call(controller.text);
-            },
-            child: const Text('Save'),
-          ),
-        ],
+      builder: (context) => _TextInputDialog(
+        title: 'Edit Player Name',
+        initialValue: widget.playerName ?? '',
+        hintText: 'Enter player name',
+        maxLength: 20,
+        textCapitalization: TextCapitalization.words,
+        onSubmit: (value) => widget.onNameChanged?.call(value),
       ),
     );
   }
 
   void _showEditDialog() {
-    final controller = TextEditingController(text: widget.label);
     final isText = widget.isTextItem;
-
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text(isText ? 'Edit Text' : 'Edit Label'),
-        content: TextField(
-          controller: controller,
-          maxLength: isText ? 50 : 2,
-          autofocus: true,
-          textAlign: isText ? TextAlign.start : TextAlign.center,
-          style: TextStyle(fontSize: isText ? 16 : 24),
-          decoration: InputDecoration(
-            hintText: isText ? 'Enter text' : 'Enter label',
-            counterText: isText ? '' : 'Max 2 characters',
-          ),
-          onSubmitted: (value) {
-            Navigator.pop(context);
-            widget.onLabelChanged(value);
-          },
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-              widget.onLabelChanged(controller.text);
-            },
-            child: const Text('Save'),
-          ),
-        ],
+      builder: (context) => _TextInputDialog(
+        title: isText ? 'Edit Text' : 'Edit Label',
+        initialValue: widget.label,
+        hintText: isText ? 'Enter text' : 'Enter label',
+        maxLength: isText ? 50 : 2,
+        textAlign: isText ? TextAlign.start : TextAlign.center,
+        style: TextStyle(fontSize: isText ? 16 : 24),
+        counterText: isText ? '' : 'Max 2 characters',
+        onSubmit: (value) => widget.onLabelChanged(value),
       ),
     );
   }
@@ -251,6 +205,86 @@ class _DraggableItemState extends State<DraggableItem> {
         onLongPress: _showContextMenu,
         child: widget.child,
       ),
+    );
+  }
+}
+
+/// A reusable stateful dialog with a single text field that owns and disposes
+/// its [TextEditingController].
+class _TextInputDialog extends StatefulWidget {
+  final String title;
+  final String initialValue;
+  final String hintText;
+  final int maxLength;
+  final TextCapitalization textCapitalization;
+  final TextAlign textAlign;
+  final TextStyle? style;
+  final String? counterText;
+  final ValueChanged<String> onSubmit;
+
+  const _TextInputDialog({
+    required this.title,
+    required this.initialValue,
+    required this.hintText,
+    required this.maxLength,
+    required this.onSubmit,
+    this.textCapitalization = TextCapitalization.none,
+    this.textAlign = TextAlign.start,
+    this.style,
+    this.counterText,
+  });
+
+  @override
+  State<_TextInputDialog> createState() => _TextInputDialogState();
+}
+
+class _TextInputDialogState extends State<_TextInputDialog> {
+  late final TextEditingController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController(text: widget.initialValue);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _submit(String value) {
+    Navigator.pop(context);
+    widget.onSubmit(value);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: Text(widget.title),
+      content: TextField(
+        controller: _controller,
+        maxLength: widget.maxLength,
+        autofocus: true,
+        textCapitalization: widget.textCapitalization,
+        textAlign: widget.textAlign,
+        style: widget.style,
+        decoration: InputDecoration(
+          hintText: widget.hintText,
+          counterText: widget.counterText,
+        ),
+        onSubmitted: _submit,
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancel'),
+        ),
+        TextButton(
+          onPressed: () => _submit(_controller.text),
+          child: const Text('Save'),
+        ),
+      ],
     );
   }
 }

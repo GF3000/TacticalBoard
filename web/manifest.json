@@ -1,12 +1,12 @@
 {
-    "name": "tactical_board",
-    "short_name": "tactical_board",
+    "name": "HandBoard",
+    "short_name": "HandBoard",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
-    "orientation": "portrait-primary",
+    "background_color": "#6e824e",
+    "theme_color": "#263238",
+    "description": "HandBoard - tactical board for handball",
+    "orientation": "landscape",
     "prefer_related_applications": false,
     "icons": [
         {

@@ -427,15 +427,22 @@ class _DrawingEditSheetState extends State<DrawingEditSheet> {
     final isSelected = _color == colorValue;
     return GestureDetector(
       onTap: () => setState(() => _color = colorValue),
-      child: Container(
-        width: 32,
-        height: 32,
-        decoration: BoxDecoration(
-          color: displayColor,
-          shape: BoxShape.circle,
-          border: Border.all(
-            color: isSelected ? Colors.blue : Colors.grey,
-            width: isSelected ? 3 : 1,
+      behavior: HitTestBehavior.opaque,
+      child: SizedBox(
+        width: 44,
+        height: 44,
+        child: Center(
+          child: Container(
+            width: 32,
+            height: 32,
+            decoration: BoxDecoration(
+              color: displayColor,
+              shape: BoxShape.circle,
+              border: Border.all(
+                color: isSelected ? Colors.blue : Colors.grey,
+                width: isSelected ? 3 : 1,
+              ),
+            ),
           ),
         ),
       ),
